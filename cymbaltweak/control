@@ -1,0 +1,9 @@
+Package: com.ethanarbuckle.cymbaltweak
+Name: cymbalTweak
+Depends: mobilesubstrate
+Version: 1.0.0
+Architecture: iphoneos-arm
+Description: Replace +[NSThread callStackSymbols] with Cymbal's unredacted implementation
+Maintainer: Ethan Arbuckle
+Author: Ethan Arbuckle
+Section: Tweaks
