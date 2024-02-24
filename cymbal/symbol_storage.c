@@ -34,33 +34,27 @@ pthread_mutex_t *_symbol_freezer_lock(void)
 
 #pragma mark - Add/fetch symbols
 // Store a given symbol
-void store_symbol(struct ObjectiveCSymbol *symbol)
-{
-    // Thread safe insertion of symbol into symbol pool
-    pthread_mutex_lock(_symbol_freezer_lock());
+void store_symbol(struct ObjectiveCSymbol *symbol) {
     CFDictionarySetValue(_symbol_freezer(), (const void *)symbol->impl_address, symbol);
-    pthread_mutex_unlock(_symbol_freezer_lock());
 }
 
 // Attempt to locate a symbolicated object for a given address
-struct ObjectiveCSymbol *search_for_symbol_at_address(void *function_address)
-{
+struct ObjectiveCSymbol *search_for_symbol_at_address(void *function_address) {
+
+    struct ObjectiveCSymbol *cached_symbol = NULL;
+    pthread_mutex_lock(_symbol_freezer_lock());
+
     // We are given a Method's return address, however what we have stored are Method's entry point addresses
     // We will look for a cached symbol within "max_method_size" of the given return address
     int max_method_size = 8192;
-    for (int offset = 0; offset <= max_method_size; offset++)
-    {
-        // Thread safe lookup
-        pthread_mutex_lock(_symbol_freezer_lock());
-        struct ObjectiveCSymbol *cached_symbol = (struct ObjectiveCSymbol *)CFDictionaryGetValue(_symbol_freezer(), (const void *)(function_address - offset));
-        pthread_mutex_unlock(_symbol_freezer_lock());
+    for (int offset = 0; offset <= max_method_size; offset++) {
         
         // Did we find something matching this address? If not substract 1 from function_address and try again
-        if (cached_symbol != NULL)
-        {
-            return cached_symbol;
+        if ((cached_symbol = (struct ObjectiveCSymbol *)CFDictionaryGetValue(_symbol_freezer(), (const void *)(function_address - offset))) != NULL) {
+            break;
         }
     }
     
-    return NULL;
+    pthread_mutex_unlock(_symbol_freezer_lock());
+    return cached_symbol;
 }

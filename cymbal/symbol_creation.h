@@ -15,6 +15,7 @@ extern int initial_mapping_has_finished;
 
 dispatch_queue_t _symbolication_worker_queue(void);
 dispatch_semaphore_t _symbolication_mainthread_semaphore(void);
+pthread_mutex_t *_symbol_freezer_lock(void);
 
 void map_all_symbols(void *_context); // void*_context is required because this is a dispatch_async_f callback
 int map_symbols_from_image_at_path(const char *image_path);

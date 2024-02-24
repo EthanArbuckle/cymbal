@@ -17,7 +17,9 @@ const char *utf8string(CFStringRef string)
     // length can like triple during conversion for some reason, CFStringGetCString will silently fail if the buffer is undersized
     CFIndex length = CFStringGetMaximumSizeForEncoding(CFStringGetLength(string), kCFStringEncodingUTF8);
     char *buffer = (char *)malloc(length);
-    CFStringGetCString(string, buffer, length, kCFStringEncodingUTF8);
+    if (buffer != NULL) {
+        CFStringGetCString(string, buffer, length, kCFStringEncodingUTF8);
+    }
     
     return buffer;
 }
@@ -37,18 +39,18 @@ static CFMutableArrayRef _mapped_images(void)
 // When first registered, dyld enumerates all loaded images and passes them to the newly registered callback (this)
 // This can begin before the initial symbol mapping process finishes, which would cause parallel mapping of duplicate images. To counter, this will
 // ignore any images passed before the initial mapping process has completed
-void image_added_to_runtime(const struct mach_header* mh, intptr_t vmaddr_slide)
-{
-    if (initial_mapping_has_finished == 0)
-    {
+void image_added_to_runtime(const struct mach_header *mh, intptr_t vmaddr_slide) {
+    if (initial_mapping_has_finished == 0) {
         return;
     }
     
     // If we don't already have this image mapped, map it
     Dl_info info;
-    dladdr(mh, &info);
-    if (!CFArrayContainsValue(_mapped_images(), CFRangeMake(0, CFArrayGetCount(_mapped_images())), info.dli_fname))
-    {
+    if (dladdr(mh, &info) == 0) {
+        return;
+    }
+            
+    if (!CFArrayContainsValue(_mapped_images(), CFRangeMake(0, CFArrayGetCount(_mapped_images())), info.dli_fname)) {
         map_symbols_from_image_at_path(info.dli_fname);
         
         // Store it so we don't remap it again accidently
@@ -60,12 +62,15 @@ void image_added_to_runtime(const struct mach_header* mh, intptr_t vmaddr_slide)
 const char **all_loaded_images(unsigned int *count)
 {
     // Build a list of all images dyld has to offer us
-    *count = _dyld_image_count();
-    const char **images = (const char **)calloc(*count + 1, sizeof(char *));
-    for (int idx = 0; idx < *count; idx++)
-    {
+    uint32_t image_count = _dyld_image_count();
+    const char **images = (const char **)calloc(image_count + 1, sizeof(char *));
+    if (images == NULL) {
+        return NULL;
+    }
+
+    for (int idx = 0; idx < image_count; idx++) {
         const char *current_image = _dyld_get_image_name(idx);
-        images[idx] = _dyld_get_image_name(idx);
+        images[idx] = current_image;
         CFArrayAppendValue(_mapped_images(), current_image);
     }
     
@@ -74,10 +79,13 @@ const char **all_loaded_images(unsigned int *count)
     CFStringRef stringBundlePath = CFURLGetString(bundlePath);
     
     const char *app_path = utf8string(stringBundlePath);
-    images[*count] = app_path;
-    CFArrayAppendValue(_mapped_images(), app_path);
+    if (app_path) {
+        images[*count] = app_path;
+        CFArrayAppendValue(_mapped_images(), app_path);
+    }
     
     CFRelease(bundlePath);
     
+    *count = image_count;
     return images;
 }

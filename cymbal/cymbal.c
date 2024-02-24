@@ -24,8 +24,7 @@ static CFMutableDictionaryRef __lookup_cache(void)
     return _lookup_cache;
 }
 
-__attribute__((constructor)) static void _symbolicator_injected()
-{
+__attribute__((constructor)) static void _symbolicator_injected(void) {
     printf("cymbal starting\n");
     
     /* All of the symbol mapping happens on this background queue. It is unideal for the app to execute code until this mapping process has completed as it could lead
@@ -67,8 +66,7 @@ __attribute__((constructor)) static void _symbolicator_injected()
 }
 
 #pragma mark - Public
-EXPORT CFArrayRef cymbal_callstack(void)
-{
+EXPORT CFArrayRef cymbal_callstack(void) {
     int default_callstack_length = 50;
     // Sometimes there are more frames available preceding start(), but I asked around and no one would find it useful
     int stop_at_start = 1;

@@ -31,37 +31,28 @@ pthread_mutex_t *_lookup_cache_lock(void)
     return &__lookup_cache_lock;
 }
 
-void cache_frame_for_lookup_address(const char *frame, void *address)
-{
-    // Thread safe storing
-    pthread_mutex_lock(_lookup_cache_lock());
-    
+void cache_frame_for_lookup_address(const char *frame, void *address) {
     // Store a copy of the pointer
-    size_t framelen = strlen(frame) + 1;
-    char *cachedptr = (char *)malloc(framelen);
-    strncpy(cachedptr, frame, framelen);
-    
+    char *cachedptr = strdup(frame);
+    if (cachedptr == NULL) {
+        return;
+    }
+
+    pthread_mutex_lock(_lookup_cache_lock());
     CFDictionarySetValue(_lookup_cache(), (const void *)address, cachedptr);
     pthread_mutex_unlock(_lookup_cache_lock());
 }
 
 // This will return NULL if nothing is cached for this address
-const char *cached_frame_for_address(void *address)
-{
+const char *cached_frame_for_address(void *address) {
     // Thread safe fetching
     pthread_mutex_lock(_lookup_cache_lock());
-    
     const char *cached_frame = (const char *)CFDictionaryGetValue(_lookup_cache(), (const void *)address);
-    
-    if (cached_frame)
-    {
-        // Create a copy of the cached pointer
-        size_t framelen = strlen(cached_frame) + 1;
-        char *cachedptr = (char *)malloc(framelen);
-        strncpy(cachedptr, cached_frame, framelen);
-        cached_frame = cachedptr;
-    }
     pthread_mutex_unlock(_lookup_cache_lock());
+
+    if (cached_frame == NULL) {
+        return NULL;
+    }
     
-    return cached_frame;
+    return strdup(cached_frame);
 }
